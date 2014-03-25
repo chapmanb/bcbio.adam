@@ -19,4 +19,8 @@
                  [edu.berkeley.cs.amplab.adam/adam-format "0.7.1"]]
   :plugins [[lein-midje "3.1.3"]]
   :profiles {:dev {:dependencies
-                   [[midje "1.6.3" :exclusions [commons-codec]]]}})
+                   [[midje "1.6.3" :exclusions [commons-codec]]]}
+             :uberjar {:aot [bcbio.adam.main]}}
+  :uberjar-merge-with {"reference.conf" [slurp str spit]
+                       "META-INF/services/org.apache.hadoop.fs.FileSystem" [slurp str spit]}
+  :main ^:skip-aot bcbio.adam.main)
