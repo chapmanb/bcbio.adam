@@ -14,13 +14,17 @@
                                org.slf4j/slf4j-api
                                com.google.protobuf/protobuf-java
                                commons-codec commons-io commons-lang]]
-                 [org.bdgenomics.adam/adam-cli "0.9.0"]
-                 [org.bdgenomics.adam/adam-core "0.9.0"]
-                 [org.bdgenomics.adam/adam-format "0.9.0"]]
+                 [org.bdgenomics.adam/adam-cli "0.9.1-SNAPSHOT"]
+                 [org.bdgenomics.adam/adam-core "0.9.1-SNAPSHOT"]
+                 [org.bdgenomics.adam/adam-format "0.9.1-SNAPSHOT"]
+                 [bcbio.variation.recall "0.0.1-SNAPSHOT"]]
+  :repositories {"sonatype" {:url "http://oss.sonatype.org/content/repositories/snapshots/"
+                             :snapshots true}}
   :plugins [[lein-midje "3.1.3"]]
   :profiles {:dev {:dependencies
                    [[midje "1.6.3" :exclusions [commons-codec]]]}
              :uberjar {:aot [bcbio.adam.main]}}
   :uberjar-merge-with {"reference.conf" [slurp str spit]
                        "META-INF/services/org.apache.hadoop.fs.FileSystem" [slurp str spit]}
-  :main ^:skip-aot bcbio.adam.main)
+  :main ^:skip-aot bcbio.adam.main
+  :aot [bcbio.adam.partition.bed])

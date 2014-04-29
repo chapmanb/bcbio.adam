@@ -3,4 +3,4 @@
   (:gen-class))
 
 (defn -main [& args]
-  (adam/variant->rdd-genotype (first args)))
+  (adam/split-by-region (first args)))
