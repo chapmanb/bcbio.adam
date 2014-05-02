@@ -11,13 +11,6 @@
             [me.raynes.fs :as fs]
             [serializable.fn :as sfn]))
 
-(defn- get-spark-context
-  "Retrieve spark context from configured inputs.
-   XXX Currently all local, needs to be generalized."
-  [name]
-  (ADAMContext/createSparkContext name "local" nil
-                                  (clj->scala []) (clj->scala []) false 4 true None$/MODULE$))
-
 (defn avc->avar
   "Convert a ADAM VariantContext to ADAMVariant"
   [avc]
@@ -25,35 +18,35 @@
 
 (defn- process-items
   "Unpack Scala Tuple2 sets of coordinates/ADAMVariants to process in region.
-   XXX Need to figure out how to get a spark context and RDD from our
-   current list of ADAMVariantContexts"
+   XXX Need to figure out how to get a RDD/context from our current list of ADAMVariantContexts
+       or write file locally without needing hadoop configuration from context."
   [out-base]
-  (sfn/fn process-items-inner [coord-avars]
-    (let [avcs (map #(._2 %) (iterator-seq coord-avars))
+  (sfn/fn process-items-inner [coord-iter]
+    (let [avcs (map #(._2 %) (iterator-seq coord-iter))
+          ;rdd  TODO -- how best to access/generate this?
+          ;sc (.context rdd)
           out-file (format "%s-%s-%s.vcf" out-base (-> avcs first avc->avar .contig .contigName)
-                           (-> avcs first avc->avar .position))
-          ;sc (get-spark-context out-file)
-          ]
+                           (-> avcs first avc->avar .position))]
       (println "-----")
       (doseq [x avcs]
         (println (avc->avar x)))
       (println "-----")
-      ;(.adamVCFSave (ADAMVariationContext. sc) out-file avcs nil)
+      ;(.adamVCFSave (ADAMVariationContext. sc) out-file rdd nil)
       [out-file])))
 
-(defn add-pos-to-rec
-  "Retrieve ADAM records for partitioning by region"
+(defn- add-pos-to-rec
+  "Retrieve ADAM records keyed by region, for partitioning."
   [avc]
   (let [avar (avc->avar avc)]
     [(clj->scala {:chrom (.contigName (.contig avar)) :start (.position avar)})
      avc]))
 
-(defn- rdd-partition-by-regions
-  "Partition a RDD by predefined regions"
-  [rdd bed-file]
-  (-> rdd
-      (.map (PairFunction. add-pos-to-rec))
-      (.partitionBy (BedPartitioner. bed-file))))
+(defn- get-spark-context
+  "Retrieve spark context from configured inputs.
+   XXX Hardcoded to local execution, needs to be generalized."
+  [name]
+  (ADAMContext/createSparkContext name "local" nil
+                                  (clj->scala []) (clj->scala []) false 4 true None$/MODULE$))
 
 (defn split-by-region
   "Process ADAM variant contexts partitioned by pre-defined genomic regions."
@@ -64,7 +57,8 @@
     (-> (ADAMVariationContext. sc)
         (.adamVCFLoad vcf-file false)
         .toJavaRDD
-        (rdd-partition-by-regions bed-file)
+        (.map (PairFunction. add-pos-to-rec))
+        (.partitionBy (BedPartitioner. bed-file))
         (.mapPartitions (FlatMapFunction. (process-items out-base)))
         k/collect
         println)))
